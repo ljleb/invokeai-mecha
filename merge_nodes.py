@@ -1,6 +1,5 @@
 import pathlib
 import re
-import time
 from typing import List, Literal
 import sd_mecha
 import torch.cuda
@@ -82,10 +81,11 @@ class RecipeMergerInvocation(invocation_api.BaseInvocation):
         )
         model_path = (pathlib.Path(context.config.get().models_path) / self.output_name).with_suffix(".safetensors")
 
-        merged_configs = context.models.search_by_path(model_path)
-        if merged_configs:
-            context._services.model_manager.install.unregister(merged_configs[0].key)
-            context._services.model_manager.install.wait_for_installs()
+        merged_configs = context.models.search_by_path(model_path.parent)
+        for config in merged_configs:
+            if pathlib.Path(config.path).stem == model_path.stem:
+                context._services.model_manager.install.unregister(merged_configs[0].key)
+                break
 
         merger.merge_and_save(
             recipe=recipe,
@@ -96,8 +96,16 @@ class RecipeMergerInvocation(invocation_api.BaseInvocation):
             threads=self.threads if self.threads > 0 else None,
             total_buffer_size=parse_memory(self.total_buffer_size),
         )
-        key = context._services.model_manager.install.install_path(str(model_path))
-        merged_model = invocation_api.ModelIdentifierField.from_config(context.models.get_config(key))
+        job = context._services.model_manager.install.heuristic_import(str(model_path), inplace=True)
+        context._services.model_manager.install.wait_for_job(job)
+
+        merged_configs = context.models.search_by_path(model_path.parent)
+        config = None
+        for config in merged_configs:
+            if pathlib.Path(config.path).stem == model_path.stem:
+                break
+
+        merged_model = invocation_api.ModelIdentifierField.from_config(config)
 
         unet = merged_model.model_copy(update={"submodel_type": invocation_api.SubModelType.UNet})
         scheduler = merged_model.model_copy(update={"submodel_type": invocation_api.SubModelType.Scheduler})
