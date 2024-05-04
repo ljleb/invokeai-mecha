@@ -1,6 +1,6 @@
 # Merge Nodes
 
-**Note: the merge node is not yet all functional, as the node interface for registering new models is not yet available in invokeai.**
+**Note: the merge node is not yet functional, as the node interface for registering new models is not yet available in invokeai.**
 
 This repo provides InvokeAI nodes for model merging with [sd-mecha](https://github.com/ljleb/sd-mecha).
 
